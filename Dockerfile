@@ -1,20 +1,22 @@
 FROM node:20-alpine
 
-# Install docker CLI to run the MCP server container from inside
+# Run as root so we can access the Docker socket
+USER root
+
+# Docker CLI to launch the MCP server container from inside
 RUN apk add --no-cache docker-cli
 
 WORKDIR /app
 
-# Copy package.json (no lockfile needed)
+# Install deps (no lockfile required)
 COPY package*.json ./
-
-# Install dependencies (omit dev dependencies for smaller image)
 RUN npm install --omit=dev
 
-# Copy the application code
+# App code
 COPY server.js ./
 
-# Expose the port from .env
+# Default port (overridden by .env)
+ENV PORT=8080
 EXPOSE 8080
 
 CMD ["node", "server.js"]
