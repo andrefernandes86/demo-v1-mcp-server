@@ -7,5 +7,5 @@ services:
       - "${PORT}:${PORT}"
     volumes:
       - ./:/app
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock   # required
     restart: always
