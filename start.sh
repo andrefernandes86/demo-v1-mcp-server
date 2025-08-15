@@ -42,7 +42,7 @@ read -r -p "Ollama base URL [http://localhost:11434]: " OLLAMA_BASE_URL
 OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://localhost:11434}"
 
 read -r -p "Ollama model [llama3:8b-instruct-q4_K_M]: " OLLAMA_MODEL
-OLLAMA_MODEL="${OLLAMA_MODEL:-llama3:8b-instruct-q4_K_M}"
+OLLAMA_MODEL="${OLLAMA_MODEL:-llama3.1:8b}"
 
 # Port for the chatbot UI
 read -r -p "Chat UI port [8080]: " PORT
