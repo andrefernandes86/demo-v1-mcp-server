@@ -8,7 +8,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.4.0",
     "express": "^4.19.2",
-    "ollama": "^0.5.7",
+    "ollama": "^0.5.8",
     "ws": "^8.16.0"
   }
 }
