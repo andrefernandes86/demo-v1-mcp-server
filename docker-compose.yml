@@ -3,9 +3,12 @@ services:
     build: .
     container_name: vision-one-mcp-chat
     env_file: .env
+    environment:
+      # Pass the Ollama host explicitly so libraries that read OLLAMA_HOST use it
+      OLLAMA_HOST: ${OLLAMA_BASE_URL}
     ports:
       - "${PORT}:${PORT}"
-    # Do NOT mount your source tree; it can overwrite files inside the image.
+    # Do NOT mount your source tree; it overwrites files & node_modules
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: always
