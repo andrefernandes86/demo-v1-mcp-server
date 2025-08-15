@@ -104,12 +104,6 @@ The Vision One MCP server provides multiple tools (depending on your license and
 
 ---
 
-## License
-
-MIT License
-
----
-
 ## References
 
 - [Trend Micro Vision One MCP Server](https://github.com/trendmicro/vision-one-mcp-server)
