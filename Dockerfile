@@ -5,12 +5,16 @@ RUN apk add --no-cache docker-cli
 
 WORKDIR /app
 
+# Copy package.json (no lockfile needed)
 COPY package*.json ./
-RUN npm ci
 
+# Install dependencies (omit dev dependencies for smaller image)
+RUN npm install --omit=dev
+
+# Copy the application code
 COPY server.js ./
 
-# The app reads PORT from env
+# Expose the port from .env
 EXPOSE 8080
 
 CMD ["node", "server.js"]
