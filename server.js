@@ -3,9 +3,9 @@ import { WebSocketServer } from 'ws';
 import { execSync } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import ollama from 'ollama';
+import { Ollama } from 'ollama'; // use the class to avoid default-host fallback
 
-// --- Env + hard defaults (you can override via .env)
+// --- Env + hard defaults (overridable via .env)
 const {
   TREND_VISION_ONE_API_KEY,
   TREND_VISION_ONE_REGION = 'us',
@@ -14,9 +14,11 @@ const {
   PORT = 8080
 } = process.env;
 
-// Force the Ollama host unless explicitly set in env
+// Force Ollama host unless explicitly set in env
 const OLLAMA_BASE_URL = OLLAMA_BASE_URL_ENV || 'http://192.168.1.100:11434';
-process.env.OLLAMA_HOST = OLLAMA_BASE_URL; // some clients read this env
+
+// Some libs read OLLAMA_HOST; set it too
+process.env.OLLAMA_HOST = OLLAMA_BASE_URL;
 
 console.log(`Using Ollama at ${OLLAMA_BASE_URL} with model ${OLLAMA_MODEL}`);
 
@@ -26,8 +28,8 @@ const server = app.listen(Number(PORT), () =>
 );
 const wss = new WebSocketServer({ server });
 
-// Dedicated Ollama client (never call the default export directly)
-const ollamaClient = ollama.create({ host: OLLAMA_BASE_URL });
+// Dedicated Ollama client (never call a global/default client)
+const ollamaClient = new Ollama({ host: OLLAMA_BASE_URL });
 
 // Non-fatal preflight checks
 function dockerAvailable() {
@@ -141,7 +143,7 @@ msg.addEventListener('keydown', e=>{
 </body></html>`);
 });
 
-// Health check for Ollama reachability
+// Health check for Ollama reachability (optional)
 app.get('/healthz', async (_req, res) => {
   try {
     const r = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
@@ -218,6 +220,9 @@ wss.on('connection', (ws) => {
   });
 });
 
+process.on('unhandledRejection', (err) => {
+  console.error('UnhandledRejection:', err);
+});
 process.on('SIGTERM', async () => {
   try { await mcpTransport?.close?.(); } finally { process.exit(0); }
 });
