@@ -8,7 +8,7 @@ import ollama from 'ollama';
 const {
   TREND_VISION_ONE_API_KEY,
   TREND_VISION_ONE_REGION = 'us',
-  OLLAMA_BASE_URL = 'http://localhost:11434',
+  OLLAMA_BASE_URL = 'http://192.168.1.100:11434',
   OLLAMA_MODEL = 'llama3.1:8b',
   PORT = 8080
 } = process.env;
