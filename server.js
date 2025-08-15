@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import express from 'express';
 import { WebSocketServer } from 'ws';
 import { execSync } from 'node:child_process';
@@ -20,26 +19,25 @@ const server = app.listen(Number(PORT), () =>
 );
 const wss = new WebSocketServer({ server });
 
-// Configure Ollama client (works even if remote is down; we’ll catch errors later)
+// Ollama client (remote/local)
 const ollamaClient = ollama.create({ host: OLLAMA_BASE_URL });
 
-/** Optional preflight: don’t crash; just record status for the UI */
-function checkDockerAvailable() {
+// Non-fatal preflight checks
+function dockerAvailable() {
   try {
     execSync('docker version', { stdio: 'ignore' });
-    execSync('test -S /var/run/docker.sock'); // ensure socket exists
+    execSync('test -S /var/run/docker.sock');
     return true;
   } catch {
     return false;
   }
 }
-
-function checkEnv() {
+function v1EnvOk() {
   return Boolean(TREND_VISION_ONE_API_KEY && TREND_VISION_ONE_REGION);
 }
 
 let mcpClient = null;
-let mcpTools = null;
+let mcpTools = [];
 let mcpTransport = null;
 let mcpReady = false;
 let mcpInitInProgress = false;
@@ -49,14 +47,12 @@ async function initMCPOnce() {
   mcpInitInProgress = true;
 
   try {
-    if (!checkEnv()) {
+    if (!v1EnvOk()) {
       console.warn('Vision One env not set; continuing without MCP.');
-      mcpInitInProgress = false;
       return false;
     }
-    if (!checkDockerAvailable()) {
-      console.warn('Docker/socket not available inside container; continuing without MCP.');
-      mcpInitInProgress = false;
+    if (!dockerAvailable()) {
+      console.warn('Docker/socket not available in container; continuing without MCP.');
       return false;
     }
 
@@ -79,10 +75,9 @@ async function initMCPOnce() {
     );
 
     await client.connect();
-    const tools = await client.listTools();
-
+    const toolsResp = await client.listTools();
     mcpClient = client;
-    mcpTools = tools?.tools || [];
+    mcpTools = toolsResp?.tools || [];
     mcpTransport = transport;
     mcpReady = true;
     console.log('MCP connected. Tools:', mcpTools.map(t => t.name).join(', '));
@@ -91,7 +86,7 @@ async function initMCPOnce() {
     console.warn('MCP init failed (will keep running without MCP):', e?.message || e);
     try { await mcpTransport?.close?.(); } catch {}
     mcpClient = null;
-    mcpTools = null;
+    mcpTools = [];
     mcpTransport = null;
     mcpReady = false;
     return false;
@@ -124,7 +119,7 @@ const ws = new WebSocket('ws://' + location.host + '/ws');
 const log = document.getElementById('log');
 const msg = document.getElementById('msg');
 function add(text){const p=document.createElement('div');p.textContent=text;log.appendChild(p);log.scrollTop=log.scrollHeight;}
-ws.onopen = ()=> add('Connected. If MCP is not ready yet, it will initialize on first use.');
+ws.onopen = ()=> add('Connected. MCP will initialize on first use if available.');
 ws.onmessage = e => add(e.data);
 msg.addEventListener('keydown', e=>{
   if(e.key==='Enter' && msg.value.trim()){
@@ -138,10 +133,10 @@ msg.addEventListener('keydown', e=>{
 });
 
 async function planAndAct(userText) {
-  // Try to init MCP lazily
+  // Lazy MCP init
   await initMCPOnce();
 
-  // Use LLM planner
+  // Planner
   const sys = `You are a security assistant with MCP tools for Trend Vision One.
 If MCP tools are available, decide if a tool should be called.
 Return pure JSON: {"use_tool":true|false,"tool_name":"...","args":{}}`;
@@ -152,7 +147,8 @@ Return pure JSON: {"use_tool":true|false,"tool_name":"...","args":{}}`;
       model: OLLAMA_MODEL,
       messages: [
         { role: 'system', content: sys },
-        { role: 'user', content: \`User: \${userText}\nAvailable tools: \${(mcpTools||[]).map(t=>t.name).join(', ')}\` }
+        { role: 'user', content: `User: ${userText}
+Available tools: ${(mcpTools || []).map(t => t.name).join(', ')}` }
       ],
       options: { temperature: 0.2 }
     });
@@ -165,14 +161,14 @@ Return pure JSON: {"use_tool":true|false,"tool_name":"...","args":{}}`;
   if (decision.use_tool && decision.tool_name && mcpReady && mcpClient) {
     try {
       const call = await mcpClient.callTool({ name: decision.tool_name, arguments: decision.args || {} });
-      const text = call.content?.map(c => c.text || JSON.stringify(c)).join('\\n') || JSON.stringify(call, null, 2);
-      return \`📎 \${decision.tool_name} →\\n\${text}\`;
-    } catch (e) {
-      return \`MCP tool call failed (\${decision.tool_name}). Verify API key/region and permissions.\`;
+      const text = call.content?.map(c => c.text || JSON.stringify(c)).join('\n') || JSON.stringify(call, null, 2);
+      return `📎 ${decision.tool_name} →\n${text}`;
+    } catch {
+      return `MCP tool call failed (${decision.tool_name}). Verify API key/region and permissions.`;
     }
   }
 
-  // Fall back to plain answer
+  // Fallback
   try {
     const ans = await ollamaClient.chat({
       model: OLLAMA_MODEL,
@@ -189,9 +185,9 @@ Return pure JSON: {"use_tool":true|false,"tool_name":"...","args":{}}`;
 }
 
 const banner = [
-  'Ready. If MCP is unavailable, the chat still works and shows errors inline.',
-  checkEnv() ? 'V1 env OK' : 'Missing TREND_VISION_ONE_API_KEY or region (set via start.sh)',
-  checkDockerAvailable() ? 'Docker/socket OK' : 'Docker/socket not accessible inside container'
+  'Ready. If MCP is unavailable, chat still works and shows errors inline.',
+  v1EnvOk() ? 'V1 env OK' : 'Missing TREND_VISION_ONE_API_KEY or region (run start.sh)',
+  dockerAvailable() ? 'Docker/socket OK' : 'Docker/socket not accessible in container'
 ].join(' | ');
 
 wss.on('connection', (ws) => {
@@ -202,7 +198,6 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Don’t exit on SIGINT in container; Docker handles stop
 process.on('SIGTERM', async () => {
   try { await mcpTransport?.close?.(); } finally { process.exit(0); }
 });
