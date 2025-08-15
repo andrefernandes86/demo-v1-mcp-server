@@ -5,13 +5,20 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import ollama from 'ollama';
 
+// --- Env + hard defaults (you can override via .env)
 const {
   TREND_VISION_ONE_API_KEY,
   TREND_VISION_ONE_REGION = 'us',
-  OLLAMA_BASE_URL = 'http://192.168.1.100:11434',
+  OLLAMA_BASE_URL: OLLAMA_BASE_URL_ENV,
   OLLAMA_MODEL = 'llama3.1:8b',
   PORT = 8080
 } = process.env;
+
+// Force the Ollama host unless explicitly set in env
+const OLLAMA_BASE_URL = OLLAMA_BASE_URL_ENV || 'http://192.168.1.100:11434';
+process.env.OLLAMA_HOST = OLLAMA_BASE_URL; // some clients read this env
+
+console.log(`Using Ollama at ${OLLAMA_BASE_URL} with model ${OLLAMA_MODEL}`);
 
 const app = express();
 const server = app.listen(Number(PORT), () =>
@@ -19,7 +26,7 @@ const server = app.listen(Number(PORT), () =>
 );
 const wss = new WebSocketServer({ server });
 
-// Ollama client (remote/local)
+// Dedicated Ollama client (never call the default export directly)
 const ollamaClient = ollama.create({ host: OLLAMA_BASE_URL });
 
 // Non-fatal preflight checks
@@ -36,6 +43,7 @@ function v1EnvOk() {
   return Boolean(TREND_VISION_ONE_API_KEY && TREND_VISION_ONE_REGION);
 }
 
+// Lazy MCP init state
 let mcpClient = null;
 let mcpTools = [];
 let mcpTransport = null;
@@ -76,6 +84,7 @@ async function initMCPOnce() {
 
     await client.connect();
     const toolsResp = await client.listTools();
+
     mcpClient = client;
     mcpTools = toolsResp?.tools || [];
     mcpTransport = transport;
@@ -130,6 +139,17 @@ msg.addEventListener('keydown', e=>{
 });
 </script>
 </body></html>`);
+});
+
+// Health check for Ollama reachability
+app.get('/healthz', async (_req, res) => {
+  try {
+    const r = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    res.status(200).send(`OK - Ollama reachable at ${OLLAMA_BASE_URL}`);
+  } catch (e) {
+    res.status(500).send(`ERR - cannot reach ${OLLAMA_BASE_URL} (${e?.code || e})`);
+  }
 });
 
 async function planAndAct(userText) {
