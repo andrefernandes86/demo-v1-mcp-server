@@ -38,8 +38,8 @@ select r in "${REGIONS[@]}"; do
 done
 
 # Ollama settings
-read -r -p "Ollama base URL [http://localhost:11434]: " OLLAMA_BASE_URL
-OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://localhost:11434}"
+read -r -p "Ollama base URL [http://192.168.1.100:11434]: " OLLAMA_BASE_URL
+OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://192.168.1.100:11434}"
 
 read -r -p "Ollama model [llama3.1:8b]: " OLLAMA_MODEL
 OLLAMA_MODEL="${OLLAMA_MODEL:-llama3.1:8b}"
