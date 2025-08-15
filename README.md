@@ -64,7 +64,7 @@ These are auto-generated in `.env` by `start.sh`:
 | `TREND_VISION_ONE_API_KEY` | Vision One API key | `abcd1234...` |
 | `TREND_VISION_ONE_REGION` | Vision One region | `us`, `eu`, `jp`, `sg`, `in`, `au`, `mea` |
 | `OLLAMA_BASE_URL` | Base URL of your Ollama server | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Ollama model name | `llama3:8b-instruct-q4_K_M` |
+| `OLLAMA_MODEL` | Ollama model name | `llama3.1:8b` |
 | `PORT` | Chat UI port | `8080` |
 
 ---
