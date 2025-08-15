@@ -1,0 +1,11 @@
+services:
+  chatbot:
+    build: .
+    container_name: vision-one-mcp-chat
+    env_file: .env
+    ports:
+      - "${PORT}:${PORT}"
+    volumes:
+      - ./:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
